@@ -1,0 +1,9 @@
+# Spam Domain Blacklist
+# Generated: 2025-10-08T17:31:54.704182
+# Threshold: Reputation < 30
+# Total domains: 4
+
+malware-host.ru	8
+phishing-site.org	5
+spam-domain.net	0
+suspicious-sender.info	25
