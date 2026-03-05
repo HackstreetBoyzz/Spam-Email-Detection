@@ -1,21 +1,15 @@
-
-
 import json
+import os
 from datetime import datetime
 from collections import defaultdict
 
-
-class DomainAnalytics:
-    
-    
-    def __init__(self, red_black_tree):
-        
+class DomainAnalytics:    #Analytics and reporting layer for domain reputation management.Provides administrative interface and statistical analysis.
+    def __init__(self, red_black_tree):   #Initialize analytics with a Red-Black Tree instance.
         self.rbt = red_black_tree
         self.action_history = []
         self.domain_categories = defaultdict(list)
     
-    def report_spam_domain(self, domain, severity=1):
-       
+    def report_spam_domain(self, domain, severity=1):# Report a domain as spam and update reputation downward.
         # Check if domain exists
         node = self.rbt.search_domain(domain)
         
@@ -45,8 +39,7 @@ class DomainAnalytics:
         
         return new_score
     
-    def whitelist_domain(self, domain, boost=20):
-        
+    def whitelist_domain(self, domain, boost=20):#Whitelist a domain and update reputation upward.
         # Check if domain exists
         node = self.rbt.search_domain(domain)
         
@@ -74,9 +67,44 @@ class DomainAnalytics:
         print(f"  Reputation: {old_score} → {new_score}")
         
         return new_score
-    
-    def get_top_spammers(self, limit=10):
-        
+
+    def import_reputation_data(self, filename="reputation_data.json"):
+        """
+        Load all reputation data from a JSON file into the Red-Black Tree.
+        Returns True on success, False if file doesn't exist.
+        """
+        try:
+            # Check if file exists. If not, it's the first run.
+            if not os.path.exists(filename):
+                print(f"Data file not found: {filename}. Starting with empty database.")
+                return False
+                
+            with open(filename, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            count = 0
+            for item in data.get('domains', []):
+                domain = item.get('domain')
+                score = item.get('reputation_score', 50)
+                spam_reports = item.get('spam_reports', 0)
+                legit_reports = item.get('legitimate_reports', 0)
+                
+                if domain:
+                    # Insert domain into the tree with its saved score
+                    node = self.rbt.insert_domain(domain, score)
+                    # Manually update the report counts
+                    node.spam_reports = spam_reports
+                    node.legitimate_reports = legit_reports
+                    count += 1
+            
+            print(f"Successfully imported {count} domains from {filename}")
+            return True
+            
+        except Exception as e:
+            print(f"Error importing data: {e}")
+            return False # Treat as a failure
+
+    def get_top_spammers(self, limit=10):# Get domains with worst reputation scores using traversal.
         all_domains = []
         self._collect_domain_info(self.rbt.root, all_domains)
         
@@ -85,8 +113,7 @@ class DomainAnalytics:
         
         return all_domains[:limit]
     
-    def get_top_trusted(self, limit=10):
-        
+    def get_top_trusted(self, limit=10):#Get domains with best reputation scores.
         all_domains = []
         self._collect_domain_info(self.rbt.root, all_domains)
         
@@ -95,8 +122,7 @@ class DomainAnalytics:
         
         return all_domains[:limit]
     
-    def _collect_domain_info(self, node, result):
-        
+    def _collect_domain_info(self, node, result):#  Helper to collect domain information via in-order traversal.
         if node == self.rbt.NIL:
             return
         
@@ -109,8 +135,7 @@ class DomainAnalytics:
         ))
         self._collect_domain_info(node.right, result)
     
-    def generate_reputation_report(self):
-        
+    def generate_reputation_report(self):# Generate comprehensive reputation statistics report.
         all_domains = []
         self._collect_domain_info(self.rbt.root, all_domains)
         
@@ -135,30 +160,30 @@ class DomainAnalytics:
             "timestamp": datetime.now().isoformat(),
             "total_domains": len(all_domains),
             "reputation_stats": {
-                "average_score": sum(scores) / len(scores),
-                "median_score": sorted(scores)[len(scores) // 2],
-                "min_score": min(scores),
-                "max_score": max(scores)
+                "average_score": sum(scores) / len(scores) if scores else 0,
+                "median_score": sorted(scores)[len(scores) // 2] if scores else 50,
+                "min_score": min(scores) if scores else 0,
+                "max_score": max(scores) if scores else 0
             },
             "categories": {
                 "blacklisted": {
                     "count": len(blacklisted),
-                    "percentage": (len(blacklisted) / len(all_domains)) * 100,
+                    "percentage": (len(blacklisted) / len(all_domains)) * 100 if all_domains else 0,
                     "threshold": "< 30"
                 },
                 "suspicious": {
                     "count": len(suspicious),
-                    "percentage": (len(suspicious) / len(all_domains)) * 100,
+                    "percentage": (len(suspicious) / len(all_domains)) * 100 if all_domains else 0,
                     "threshold": "30-59"
                 },
                 "neutral": {
                     "count": len(neutral),
-                    "percentage": (len(neutral) / len(all_domains)) * 100,
+                    "percentage": (len(neutral) / len(all_domains)) * 100 if all_domains else 0,
                     "threshold": "60-79"
                 },
                 "trusted": {
                     "count": len(trusted),
-                    "percentage": (len(trusted) / len(all_domains)) * 100,
+                    "percentage": (len(trusted) / len(all_domains)) * 100 if all_domains else 0,
                     "threshold": "≥ 80"
                 }
             },
@@ -177,8 +202,7 @@ class DomainAnalytics:
         
         return report
     
-    def print_reputation_report(self, report=None):
-        
+    def print_reputation_report(self, report=None):#Print formatted reputation report to console.
         if report is None:
             report = self.generate_reputation_report()
         
@@ -190,6 +214,7 @@ class DomainAnalytics:
         
         if report['total_domains'] == 0:
             print("\nNo domains in database.")
+            print("=" * 60 + "\n")
             return
         
         print("\n--- REPUTATION STATISTICS ---")
@@ -218,8 +243,7 @@ class DomainAnalytics:
         
         print("=" * 60 + "\n")
     
-    def export_blacklist(self, filename="blacklist.txt", threshold=30):
-       
+    def export_blacklist(self, filename="blacklist.txt", threshold=30):#Export blacklisted domains to a file.
         blacklisted = self.rbt.get_blacklisted_domains(threshold)
         
         try:
@@ -239,8 +263,7 @@ class DomainAnalytics:
             print(f"Error exporting blacklist: {e}")
             return 0
     
-    def export_reputation_data(self, filename="reputation_data.json"):
-        
+    def export_reputation_data(self, filename="reputation_data.json"):#Export all reputation data to JSON file.
         all_domains = []
         self._collect_domain_info(self.rbt.root, all_domains)
         
@@ -270,7 +293,9 @@ class DomainAnalytics:
             return False
     
     def visualize_tree_structure(self):
-        
+        """
+        Generate ASCII visualization of the tree structure.
+        """
         print("\n" + "=" * 60)
         print("RED-BLACK TREE STRUCTURE")
         print("=" * 60)
@@ -285,7 +310,7 @@ class DomainAnalytics:
         print("=" * 60 + "\n")
     
     def _log_action(self, action_type, domain, details):
-        
+        """Log an action to history."""
         self.action_history.append({
             "timestamp": datetime.now().isoformat(),
             "action": action_type,
@@ -293,12 +318,11 @@ class DomainAnalytics:
             "details": details
         })
     
-    def get_action_history(self, limit=20):
-       
+    def get_action_history(self, limit=20):#Get recent action history.
         return self.action_history[-limit:]
     
     def print_action_history(self, limit=10):
-        
+        """Print recent action history."""
         print("\n--- RECENT ACTIONS ---")
         history = self.get_action_history(limit)
         
@@ -314,58 +338,57 @@ class DomainAnalytics:
 
 # Demo usage
 if __name__ == "__main__":
-    # NOTE: You need member3_rbtree_core.py in the same directory
-    from member3_rbtree_core import RedBlackTree
+    from rbtree_core import RedBlackTree
     
     # Initialize
     rbt = RedBlackTree()
     analytics = DomainAnalytics(rbt)
     
-    # Add initial domains
-    print("Setting up test domains...")
-    test_domains = [
-        ("example.com", 75),
-        ("spam-central.net", 15),
-        ("phishing-scam.org", 5),
-        ("trusted-bank.com", 95),
-        ("newsletter-service.io", 60),
-        ("malware-host.ru", 10),
-        ("legitimate-shop.com", 85)
-    ]
+    print("--- Testing Persistence ---")
+    # 1. Try to load data (will fail on first run)
+    analytics.import_reputation_data("demo_reputation.json")
     
-    for domain, score in test_domains:
-        rbt.insert_domain(domain, score)
+    # 2. Add initial domains if tree is empty
+    if rbt.size == 0:
+        print("Setting up test domains...")
+        test_domains = [
+            ("example.com", 75),
+            ("spam-central.net", 15),
+            ("phishing-scam.org", 5),
+            ("trusted-bank.com", 95),
+            ("newsletter-service.io", 60),
+            ("malware-host.ru", 10),
+            ("legitimate-shop.com", 85)
+        ]
+        for domain, score in test_domains:
+            rbt.insert_domain(domain, score)
     
-    # Report spam domains
     print("\n--- Reporting Spam Domains ---")
     analytics.report_spam_domain("spam-central.net", severity=3)
     analytics.report_spam_domain("phishing-scam.org", severity=5)
     
-    # Whitelist domains
     print("\n--- Whitelisting Trusted Domains ---")
     analytics.whitelist_domain("trusted-bank.com", boost=5)
     analytics.whitelist_domain("legitimate-shop.com", boost=15)
     
-    # Get top spammers
     print("\n--- TOP 5 SPAM DOMAINS ---")
     top_spammers = analytics.get_top_spammers(5)
     for i, (domain, score, spam_reports, _) in enumerate(top_spammers, 1):
         print(f"{i}. {domain:30s} Score: {score:3d}  Reports: {spam_reports}")
     
-    # Get top trusted
     print("\n--- TOP 5 TRUSTED DOMAINS ---")
     top_trusted = analytics.get_top_trusted(5)
     for i, (domain, score, _, legit_reports) in enumerate(top_trusted, 1):
         print(f"{i}. {domain:30s} Score: {score:3d}  Reports: {legit_reports}")
     
-    # Generate full report
     analytics.print_reputation_report()
+    analytics.export_blacklist("spam_blacklist.txt")
     
-    # Export blacklist
-    analytics.export_blacklist("spam_blacklist.txt", threshold=30)
+    # 3. Export the data
+    print("\n--- Saving Data for Persistence Demo ---")
+    analytics.export_reputation_data("demo_reputation.json")
     
-    # Visualize tree
     analytics.visualize_tree_structure()
-    
-    # Print action history
     analytics.print_action_history()
+    
+    print("\nRun this file again to see persistence in action.")
