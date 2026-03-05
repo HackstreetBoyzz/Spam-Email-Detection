@@ -218,8 +218,6 @@ class SpamKeywordManager:
 
 
 if __name__ == "__main__":
-    # NOTE: You need to have member1_bloom_filter.py in the same directory
-    # or modify the import below
     from bloom_filter import BloomFilter
     
     # Initialize
