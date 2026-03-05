@@ -1,13 +1,8 @@
-
 import math
 import hashlib
 
-
-class BloomFilter:
-
-    
-    def __init__(self, expected_items=10000, false_positive_rate=0.01):
-
+class BloomFilter:   #Core Bloom Filter implementation for spam keyword detection.
+    def __init__(self, expected_items=10000, false_positive_rate=0.01):   #Initialize bloom filter with optimal size and hash function count.
         self.expected_items = expected_items
         self.false_positive_rate = false_positive_rate
         
@@ -28,18 +23,15 @@ class BloomFilter:
         print(f"  Hash functions: {self.num_hashes}")
         print(f"  Expected FP rate: {false_positive_rate:.4f}")
     
-    def _calculate_optimal_size(self, n, p):
-
+    def _calculate_optimal_size(self, n, p):    # Calculate optimal bit array size. Formula: m = -(n * ln(p)) / (ln(2)^2)
         m = -(n * math.log(p)) / (math.log(2) ** 2)
         return int(math.ceil(m))
     
-    def _calculate_optimal_hash_count(self, m, n):
-
+    def _calculate_optimal_hash_count(self, m, n):   #Calculate optimal number of hash functions Formula: k = (m/n) * ln(2)
         k = (m / n) * math.log(2)
         return int(math.ceil(k))
     
-    def _murmur_hash(self, key, seed=0):
-
+    def _murmur_hash(self, key, seed=0):   #MurmurHash3 implementation - fast non-cryptographic hash.
         key_bytes = key.encode('utf-8')
         hash_val = seed
         
@@ -51,8 +43,7 @@ class BloomFilter:
         
         return hash_val % self.size
     
-    def _fnv_hash(self, key, seed=0):
-
+    def _fnv_hash(self, key, seed=0):   #FNV-1a hash function - simple and effective.
         fnv_prime = 0x01000193
         fnv_offset = 0x811c9dc5
         
@@ -64,8 +55,7 @@ class BloomFilter:
         
         return hash_val % self.size
     
-    def _djb2_hash(self, key, seed=0):
-
+    def _djb2_hash(self, key, seed=0):    # DJB2 hash function - created by Daniel J. Bernstein.
         hash_val = 5381 + seed
         
         for char in key:
@@ -74,8 +64,7 @@ class BloomFilter:
         
         return hash_val % self.size
     
-    def _sdbm_hash(self, key, seed=0):
-
+    def _sdbm_hash(self, key, seed=0):  #SDBM hash function - used in SDBM database.
         hash_val = seed
         
         for char in key:
@@ -84,8 +73,7 @@ class BloomFilter:
         
         return hash_val % self.size
     
-    def _get_hash_values(self, item):
-
+    def _get_hash_values(self, item):    # Generate multiple hash values for an item using different functions.
         item_lower = item.lower().strip()
         hash_functions = [self._murmur_hash, self._fnv_hash, self._djb2_hash, self._sdbm_hash]
         
@@ -99,8 +87,7 @@ class BloomFilter:
         
         return indices
     
-    def add(self, item):
-
+    def add(self, item):    #Add an item (spam keyword) to the bloom filter.
         if not isinstance(item, str) or not item.strip():
             return
         
@@ -111,37 +98,30 @@ class BloomFilter:
         
         self.items_added += 1
     
-    def contains(self, item):
-
+    def contains(self, item):   # Check if an item might be in the set (with possible false positives).
         if not isinstance(item, str) or not item.strip():
             return False
         
         indices = self._get_hash_values(item)
-        
         # Item is present only if all corresponding bits are set
         for idx in indices:
             if not self.bit_array[idx]:
                 return False
-        
         return True
     
-    def get_false_positive_rate(self):
-
+    def get_false_positive_rate(self):  #Calculate the actual false positive rate based on current state.
         if self.items_added == 0:
             return 0.0
         
         # Calculate actual FP rate based on items added
         exponent = -self.num_hashes * self.items_added / self.size
         actual_fp_rate = (1 - math.exp(exponent)) ** self.num_hashes
-        
         return actual_fp_rate
     
-    def get_capacity_usage(self):
-
+    def get_capacity_usage(self):    # Calculate what percentage of expected capacity is being used.
         return (self.items_added / self.expected_items) * 100
     
-    def get_bit_usage(self):
-
+    def get_bit_usage(self):   # Calculate percentage of bits set to True in the bit array.
         bits_set = sum(self.bit_array)
         return (bits_set / self.size) * 100
     
@@ -150,8 +130,7 @@ class BloomFilter:
         self.bit_array = [False] * self.size
         self.items_added = 0
     
-    def get_stats(self):
-
+    def get_stats(self):    # Get comprehensive statistics about the bloom filter.
         return {
             'size_bits': self.size,
             'num_hash_functions': self.num_hashes,
